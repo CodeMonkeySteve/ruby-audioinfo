@@ -85,7 +85,7 @@ class AudioInfo
 	  i = @info.tag.tracknum
 	  @tracknum = (i.is_a?(Array) ? i.last : i).to_i
 	  @length = @info.length.to_i
-	  @date = @info.tag["date"]
+	  @date = @info.tag["date"] || @info.tag["year"]
 	  @vbr = @info.vbr
 	  @info.close
 
@@ -97,6 +97,7 @@ class AudioInfo
           @tracknum = @info.tag.tracknumber.to_i
 	  @length = @info.length.to_i
 	  @date = @info.tag["date"]
+	  @date = @date.to_i  if @date =~ /^\d+$/
 	  @vbr = true
 	  @info.close
 	  
