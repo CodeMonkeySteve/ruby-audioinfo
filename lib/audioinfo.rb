@@ -30,7 +30,7 @@ class AudioInfo
 
   VERSION = "0.1.7"
 
-  attr_reader :path, :extension, :musicbrainz_infos, :tracknum, :bitrate, :vbr
+  attr_reader :path, :extension, :content_type, :musicbrainz_infos, :tracknum, :bitrate, :vbr
   attr_reader :artist, :album, :title, :length, :date
   
   # "block version" of #new()
@@ -62,6 +62,7 @@ class AudioInfo
     begin
       case @extension
 	when 'mp3'
+	  @content_type = 'audio/mpeg'
 	  @info = Mp3Info.new(filename, :encoding => @encoding)
 	  default_tag_fill
 	  #"TXXX"=>
@@ -90,6 +91,7 @@ class AudioInfo
 	  @info.close
 
 	when 'ogg'
+	  @content_type = 'audio/ogg'
 	  @info = OggInfo.new(filename, @encoding)
 	  default_fill_musicbrainz_fields
 	  default_tag_fill
@@ -102,6 +104,7 @@ class AudioInfo
 	  @info.close
 	  
 	when 'mpc'
+	  @content_type = 'audio/x-musepack'
           fill_ape_tag(filename)
 
 	  mpc_info = MpcInfo.new(filename)
@@ -109,9 +112,11 @@ class AudioInfo
 	  @length = mpc_info.infos['length']
 
         when 'ape'
+	  @content_type = 'audio/x-monkeys-audio'
 	  fill_ape_tag(filename)
 
         when 'wma'
+	  @content_type = 'audio/x-ms-wma'
 	  @info = WmaInfo.new(filename, :encoding => @encoding)
 	  @artist = @info.tags["Author"]
 	  @album = @info.tags["AlbumTitle"]
@@ -127,6 +132,7 @@ class AudioInfo
 	  end
           
 	when 'aac', 'mp4', 'm4a'
+	  @content_type = 'audio/mp4'
 	  @info = MP4Info.open(filename)
 	  @artist = @info.ART
 	  @album = @info.ALB
@@ -144,6 +150,7 @@ class AudioInfo
 	  end
 	
 	when 'flac'
+	  @content_type = 'audio/ogg; codecs=flac'
 	  @info = FlacInfo.new(filename)
           tags = convert_tags_encoding(@info.tags, "UTF-8")
 	  @artist = tags["ARTIST"] || tags["artist"]
