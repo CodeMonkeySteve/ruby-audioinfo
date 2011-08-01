@@ -26,13 +26,23 @@ class AudioInfo
     "trackid" => "Track Id"
   }
 
-  SUPPORTED_EXTENSIONS = %w{mp3 ogg mpc wma mp4 aac m4a flac}
+  SUPPORTED_EXTENSIONS = %w{mp3 ogg mpc ape wma mp4 aac m4a flac}
+
+  CONTENT_TYPE_EXT = {
+    'mp3'  => 'audio/mpeg',
+    'ogg'  => 'audio/ogg',
+    'mpc'  => 'audio/x-musepack',
+    'ape'  => 'audio/x-monkeys-audio',
+    'wma'  => 'audio/x-ms-wma',
+    'mp4'  => 'audio/mp4', 'aac' => 'audio/mp4', 'm4a' => 'audio/mp4',
+    'flac' => 'audio/ogg; codecs=flac',
+  }
 
   VERSION = "0.1.7"
 
   attr_reader :path, :extension, :content_type, :musicbrainz_infos, :tracknum, :bitrate, :vbr
   attr_reader :artist, :album, :title, :length, :date
-  
+
   # "block version" of #new()
   def self.open(*args)
     audio_info = self.new(*args)
@@ -50,19 +60,24 @@ class AudioInfo
   end
 
   # open the file with path +fn+ and convert all tags from/to specified +encoding+
-  def initialize(filename, encoding = 'utf-8')
+  def initialize(filename, content_type = nil, encoding = 'utf-8')
     raise(AudioInfoError, "path is nil") if filename.nil?
     @path = filename
-    ext = File.extname(@path)
-    raise(AudioInfoError, "cannot find extension") if ext.empty?
-    @extension = ext[1..-1].downcase
+    if content_type
+      raise(AudioInfoError, "unsupported content type: #{content_type.inspect}")  unless CONTENT_TYPE_EXT.values.include?(content_type)
+    else
+      ext = File.extname(@path)[1..-1]
+      @content_type = CONTENT_TYPE_EXT[ext]
+      raise(AudioInfoError, "cannot find extension: #{ext.inspect}")  unless @content_type
+    end
+    @content_type = content_type
+
     @musicbrainz_infos = {}
     @encoding = encoding
 
     begin
-      case @extension
-	when 'mp3'
-	  @content_type = 'audio/mpeg'
+      case @content_type
+	when 'audio/mpeg'
 	  @info = Mp3Info.new(filename, :encoding => @encoding)
 	  default_tag_fill
 	  #"TXXX"=>
@@ -90,8 +105,7 @@ class AudioInfo
 	  @vbr = @info.vbr
 	  @info.close
 
-	when 'ogg'
-	  @content_type = 'audio/ogg'
+	when 'audio/ogg'
 	  @info = OggInfo.new(filename, @encoding)
 	  default_fill_musicbrainz_fields
 	  default_tag_fill
@@ -103,20 +117,17 @@ class AudioInfo
 	  @vbr = true
 	  @info.close
 	  
-	when 'mpc'
-	  @content_type = 'audio/x-musepack'
+	when 'audio/x-musepack'
           fill_ape_tag(filename)
 
 	  mpc_info = MpcInfo.new(filename)
           @bitrate = mpc_info.infos['bitrate']/1000
 	  @length = mpc_info.infos['length']
 
-        when 'ape'
-	  @content_type = 'audio/x-monkeys-audio'
+        when 'audio/x-monkeys-audio'
 	  fill_ape_tag(filename)
 
-        when 'wma'
-	  @content_type = 'audio/x-ms-wma'
+        when 'audio/x-ms-wma'
 	  @info = WmaInfo.new(filename, :encoding => @encoding)
 	  @artist = @info.tags["Author"]
 	  @album = @info.tags["AlbumTitle"]
@@ -131,8 +142,7 @@ class AudioInfo
               @info.info["MusicBrainz/" + original_key]
 	  end
           
-	when 'aac', 'mp4', 'm4a'
-	  @content_type = 'audio/mp4'
+	when 'audio/mp4'
 	  @info = MP4Info.open(filename)
 	  @artist = @info.ART
 	  @album = @info.ALB
@@ -149,8 +159,7 @@ class AudioInfo
 	    @musicbrainz_infos[key] = value
 	  end
 	
-	when 'flac'
-	  @content_type = 'audio/ogg; codecs=flac'
+	when 'audio/ogg; codecs=flac'
 	  @info = FlacInfo.new(filename)
           tags = convert_tags_encoding(@info.tags, "UTF-8")
 	  @artist = tags["ARTIST"] || tags["artist"]
@@ -168,7 +177,7 @@ class AudioInfo
 	  #default_fill_musicbrainz_fields
 
 	else
-	  raise(AudioInfoError, "unsupported extension '.#{@extension}'")
+	  raise(AudioInfoError, "unsupported content type '#{@content_type}'")
       end
 
       if @tracknum == 0
