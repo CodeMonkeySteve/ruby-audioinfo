@@ -65,12 +65,12 @@ class AudioInfo
     @path = filename
     if content_type
       raise(AudioInfoError, "unsupported content type: #{content_type.inspect}")  unless CONTENT_TYPE_EXT.values.include?(content_type)
+      @content_type = content_type
     else
       ext = File.extname(@path)[1..-1]
       @content_type = CONTENT_TYPE_EXT[ext]
       raise(AudioInfoError, "cannot find extension: #{ext.inspect}")  unless @content_type
     end
-    @content_type = content_type
 
     @musicbrainz_infos = {}
     @encoding = encoding
